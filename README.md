@@ -1,4 +1,4 @@
-# Chowk (चोक): vehicle-mix traffic counts for Kathmandu junctions
+# Traffic Vehicle Detection (Edge AI): vehicle-mix traffic counts for Kathmandu junctions
 
 [![Try it live](https://img.shields.io/badge/Try_it-live-2ea44f?style=for-the-badge)](https://chowk-kathmandu-traffic.onrender.com)
 
