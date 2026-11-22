@@ -107,6 +107,11 @@ def test_api_now_and_flows(aws):
                                 "pathParameters": {"junction": "maitighar", "approach": "from_thapathali"},
                                 "queryStringParameters": {"hours": "many"}})
     assert bad["statusCode"] == 400
+    for since, reason in (("yesterday", "ISO 8601"), ("2026-10-01T07:00Z", "UTC offset")):
+        resp = handlers.api_handler({"rawPath": "/junctions/maitighar/from_thapathali/flows",
+                                     "pathParameters": {"junction": "maitighar", "approach": "from_thapathali"},
+                                     "queryStringParameters": {"since": since}})
+        assert resp["statusCode"] == 400 and reason in json.loads(resp["body"])["error"]
 
 
 def test_retrain_bootstraps_then_gate_blocks_a_worse_model(aws, synthetic):

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from datetime import datetime, timedelta
 
 from chowk import config
 from chowk.counting import congestion
@@ -11,6 +12,21 @@ from chowk.store import FlowStore
 
 def junctions() -> dict:
     return json.loads((config.DATA_DIR / "junctions.json").read_text())["junctions"]
+
+
+def flow_window(since: str, hours: int) -> tuple[str, str]:
+    """The [since, until) text range to query for /flows. Raises ValueError with a message for the caller.
+
+    interval_start keys are naive Nepal time compared as text, so a `since` with a UTC offset would be
+    read as Nepal time and return the wrong hours. Reject it instead of guessing.
+    """
+    try:
+        start = datetime.fromisoformat(since)
+    except ValueError:
+        raise ValueError("since must be ISO 8601, e.g. 2026-10-01T07:00") from None
+    if start.tzinfo is not None:
+        raise ValueError("since must be naive Nepal local time, without a UTC offset")
+    return since, (start + timedelta(hours=hours)).isoformat()
 
 
 def approach_status(store: FlowStore, junction_id: str, approach_id: str, geometry: dict | None) -> dict:

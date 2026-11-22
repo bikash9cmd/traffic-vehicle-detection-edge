@@ -64,3 +64,23 @@ def test_api_marks_degraded_images(tmp_path):
     now = TestClient(create_app(store)).get("/junctions/maitighar/now").json()
     a = {x["approach"]: x for x in now["approaches"]}["from_thapathali"]
     assert a["status"] == "degraded_image" and a["image_problems"] == ["dark"]
+
+
+def test_api_flows_rejects_bad_input_instead_of_crashing_or_returning_nothing(tmp_path):
+    from datetime import datetime
+
+    store = LocalStore(tmp_path / "f.jsonl")
+    store.put(aggregate("maitighar", "from_thapathali", datetime(2026, 10, 1, 8, 0), ["light"] * 10, "v1").as_dict())
+    c = TestClient(create_app(store), raise_server_exceptions=False)
+    url = "/junctions/maitighar/from_thapathali/flows"
+    bad_since = c.get(url, params={"since": "yesterday"})
+    assert bad_since.status_code == 400 and "ISO 8601" in bad_since.json()["detail"]
+    # interval_start keys are naive Nepal time; 07:00Z is 12:45 in Kathmandu, so don't silently mix them up.
+    for since in ("2026-10-01T07:00Z", "2026-10-01T07:00+05:45"):
+        offset = c.get(url, params={"since": since})
+        assert offset.status_code == 400 and "UTC offset" in offset.json()["detail"]
+    assert c.get("/junctions/nowhere/from_thapathali/flows").status_code == 404
+    assert c.get("/junctions/maitighar/typo/flows").status_code == 404
+    # Without `since`, every stored interval: what the replay sessions and the demo rely on.
+    assert len(c.get(url).json()["flows"]) == 1
+    assert c.get("/junctions/replay/recorded_clips/flows").status_code == 200
