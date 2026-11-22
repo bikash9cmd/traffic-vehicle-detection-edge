@@ -199,7 +199,7 @@ def _response(status: int, body: dict) -> dict:
 
 def api_handler(event: dict, _ctx=None) -> dict:
     """HTTP API payload v2. Same logic as chowk/api.py, without FastAPI (smaller package, faster cold start)."""
-    from chowk.status import approach_status
+    from chowk.status import approach_status, flow_window
 
     path = event.get("rawPath", "/")
     params = event.get("pathParameters") or {}
@@ -220,10 +220,13 @@ def api_handler(event: dict, _ctx=None) -> dict:
         return _response(404, {"error": f"unknown approach {aid}"})
     try:
         hours = int(qs.get("hours", 24))
-        since = qs.get("since") or (_now_npt() - timedelta(hours=hours)).isoformat(timespec="minutes")
-        until = (datetime.fromisoformat(since) + timedelta(hours=hours)).isoformat()
     except ValueError:
-        return _response(400, {"error": "since must be ISO 8601 and hours an integer"})
+        return _response(400, {"error": "hours must be an integer"})
     if not 1 <= hours <= 24 * 31:
         return _response(400, {"error": "hours must be between 1 and 744"})
+    try:
+        since, until = flow_window(qs.get("since") or (_now_npt() - timedelta(hours=hours)).isoformat(
+            timespec="minutes"), hours)
+    except ValueError as e:
+        return _response(400, {"error": str(e)})
     return _response(200, {"junction": jid, "approach": aid, "flows": store.query(jid, aid, since, until)})
